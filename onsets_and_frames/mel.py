@@ -7,6 +7,9 @@ from torch.autograd import Variable
 
 from .constants import *
 
+import warnings
+warnings.filterwarnings('ignore')
+
 
 class STFT(torch.nn.Module):
     """adapted from Prem Seetharaman's https://github.com/pseeth/pytorch-stft"""

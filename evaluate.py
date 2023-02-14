@@ -13,26 +13,70 @@ from tqdm import tqdm
 
 import onsets_and_frames.dataset as dataset_module
 from onsets_and_frames import *
+from onsets_and_frames.decoding import extract_notes_wo_velocity
 
 eps = sys.float_info.epsilon
+
+
+def _predict_each_label(label, model):
+    """
+    Infer each audio label with model.
+
+    Parameters
+    ----------
+    label: Label from dataset. Contains audio and ground truth label.
+    model: Model information. Depends on ensemble and pre_pred.
+    ensemble: If ensemble is None, model will be model file.
+              If ensemble is not None, model will be the list of models.
+    device: Device for models and data.
+    pre_pred: If pre_pred is True, pre-predicted result is used for inference.
+
+    Returns
+    -------
+    pred: Prediction result in dict.
+    """
+
+    # pred = model(label['mel'].unsqueeze(0))
+    # pred = model.run_on_batch(label, evaluation=True)
+    if 'mel' in label.keys():
+        mel_label = label['mel']
+    else:
+        try:
+            label['mel'] = model.melspectrogram(label['audio'].reshape(-1, label['audio'].shape[-1])[:, :-1])\
+                        .transpose(-1, -2)
+        except:
+            label['mel'] = model.module.melspectrogram(label['audio'].reshape(-1, label['audio'].shape[-1])[:, :-1])\
+                        .transpose(-1, -2)
+        mel_label = label['mel']
+    pred = model(mel_label)
+    pred[pred==4]=3
+    return {
+        'onset': (pred==3).type(torch.int),
+        'frame': (pred>1).type(torch.int),
+        'offset': (pred==1).type(torch.int)
+    }
+
 
 
 def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=None):
     metrics = defaultdict(list)
 
     for label in data:
-        pred, losses = model.run_on_batch(label)
+        # pred, losses = model.run_on_batch(label)
+        pred = _predict_each_label(label, model)
 
-        for key, loss in losses.items():
-            metrics[key].append(loss.item())
+        # for key, loss in losses.items():
+        #     metrics[key].append(loss.item())
 
         for key, value in pred.items():
             value.squeeze_(0).relu_()
 
-        p_ref, i_ref, v_ref = extract_notes(label['onset'], label['frame'], label['velocity'])
-        p_est, i_est, v_est = extract_notes(pred['onset'], pred['frame'], pred['velocity'], onset_threshold, frame_threshold)
+        label_onset = (label['label'] == 3).float()
+        label_frame  = (label['label'] > 1).float()
+        p_ref, i_ref = extract_notes_wo_velocity(label_onset, label_frame)
+        p_est, i_est = extract_notes_wo_velocity(pred['onset'], pred['frame'], onset_threshold, frame_threshold)
 
-        t_ref, f_ref = notes_to_frames(p_ref, i_ref, label['frame'].shape)
+        t_ref, f_ref = notes_to_frames(p_ref, i_ref, label_frame.shape)
         t_est, f_est = notes_to_frames(p_est, i_est, pred['frame'].shape)
 
         scaling = HOP_LENGTH / SAMPLE_RATE
@@ -59,18 +103,18 @@ def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=No
         metrics['metric/note-with-offsets/f1'].append(f)
         metrics['metric/note-with-offsets/overlap'].append(o)
 
-        p, r, f, o = evaluate_notes_with_velocity(i_ref, p_ref, v_ref, i_est, p_est, v_est,
-                                                  offset_ratio=None, velocity_tolerance=0.1)
-        metrics['metric/note-with-velocity/precision'].append(p)
-        metrics['metric/note-with-velocity/recall'].append(r)
-        metrics['metric/note-with-velocity/f1'].append(f)
-        metrics['metric/note-with-velocity/overlap'].append(o)
+        # p, r, f, o = evaluate_notes_with_velocity(i_ref, p_ref, v_ref, i_est, p_est, v_est,
+        #                                           offset_ratio=None, velocity_tolerance=0.1)
+        # metrics['metric/note-with-velocity/precision'].append(p)
+        # metrics['metric/note-with-velocity/recall'].append(r)
+        # metrics['metric/note-with-velocity/f1'].append(f)
+        # metrics['metric/note-with-velocity/overlap'].append(o)
 
-        p, r, f, o = evaluate_notes_with_velocity(i_ref, p_ref, v_ref, i_est, p_est, v_est, velocity_tolerance=0.1)
-        metrics['metric/note-with-offsets-and-velocity/precision'].append(p)
-        metrics['metric/note-with-offsets-and-velocity/recall'].append(r)
-        metrics['metric/note-with-offsets-and-velocity/f1'].append(f)
-        metrics['metric/note-with-offsets-and-velocity/overlap'].append(o)
+        # p, r, f, o = evaluate_notes_with_velocity(i_ref, p_ref, v_ref, i_est, p_est, v_est, velocity_tolerance=0.1)
+        # metrics['metric/note-with-offsets-and-velocity/precision'].append(p)
+        # metrics['metric/note-with-offsets-and-velocity/recall'].append(r)
+        # metrics['metric/note-with-offsets-and-velocity/f1'].append(f)
+        # metrics['metric/note-with-offsets-and-velocity/overlap'].append(o)
 
         frame_metrics = evaluate_frames(t_ref, f_ref, t_est, f_est)
         metrics['metric/frame/f1'].append(hmean([frame_metrics['Precision'] + eps, frame_metrics['Recall'] + eps]) - eps)

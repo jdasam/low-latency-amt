@@ -51,7 +51,7 @@ def parse_midi(path):
     return np.array(notes)
 
 
-def save_midi(path, pitches, intervals, velocities):
+def save_midi(path, pitches, intervals, velocities=None):
     """
     Save extracted notes as a MIDI file
     Parameters
@@ -65,6 +65,9 @@ def save_midi(path, pitches, intervals, velocities):
     track = MidiTrack()
     file.tracks.append(track)
     ticks_per_second = file.ticks_per_beat * 2.0
+
+    if velocities is None:
+        velocities = [64] * len(pitches)
 
     events = []
     for i in range(len(pitches)):
