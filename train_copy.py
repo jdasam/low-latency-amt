@@ -21,6 +21,7 @@ def get_argument_parser():
     parser.add_argument('--path', type=str, default='/home/dasol/userdata/low-latency-transcription/onsets-and-frames/data/MAESTRO',
                         help='directory path to the dataset')
 
+    parser.add_argument('--acoustic_model_name', type=str, default='ConvStack')
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--iterations', type=int, default=1000)
     parser.add_argument('--learning_rate', type=float, default=0.0006)
@@ -44,6 +45,7 @@ def get_argument_parser():
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--save_dir', type=Path, default=Path('experiments/'))
     parser.add_argument('--no_log', action='store_true')
+
 
 
     # parser.add_argument('--num_epoch_per_log', type=int, default=1)
@@ -77,9 +79,10 @@ def update_args(args):
 
     return args
 
+
 def train(logdir, device, iterations, resume_iteration, checkpoint_interval, train_on, batch_size, sequence_length,
           model_complexity, learning_rate, learning_rate_decay_steps, learning_rate_decay_rate, leave_one_out,
-          clip_gradient_norm, validation_length, validation_interval):
+          clip_gradient_norm, validation_length, validation_interval, acoustic_model_name):
 
     os.makedirs(logdir, exist_ok=True)
     writer = SummaryWriter(logdir)
@@ -102,7 +105,7 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
 
     if resume_iteration is None:
         # model = OnsetsAndFrames(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity).to(device)
-        model = ARTranscriber(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity).to(device)
+        model = ARTranscriber(N_MELS, MAX_MIDI - MIN_MIDI + 1, model_complexity, acoustic_model_name=acoustic_model_name).to(device)
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
         resume_iteration = 0
     else:
@@ -149,8 +152,6 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
 
 
 
-
-
 if __name__ == '__main__':
     args = get_argument_parser().parse_args()
     args = update_args(args)
@@ -177,4 +178,5 @@ if __name__ == '__main__':
           args.leave_one_out, 
           args.clip_gradient_norm, 
           args.validation_length, 
-          args.validation_interval)
+          args.validation_interval,
+          args.acoustic_model_name)

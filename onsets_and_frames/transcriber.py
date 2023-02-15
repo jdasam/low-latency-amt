@@ -64,6 +64,31 @@ class ConvStackShortC(ConvStack):
         super().__init__(input_features, output_features)
         self.cnn[8] = nn.Conv2d(output_features // 16, output_features // 8, (1, 3), padding=(0, 1))
 
+class ConvStackShortD(ConvStack):
+    def __init__(self, input_features, output_features):
+        super().__init__(input_features, output_features)
+        self.cnn[0] = nn.Conv2d(1, output_features // 16, (1, 3), padding=(0, 1))
+        self.cnn[3] = nn.Conv2d(output_features // 16, output_features // 16, (1, 3), padding=(0, 1))
+
+class ConvStackShortE(ConvStack):
+    def __init__(self, input_features, output_features):
+        super().__init__(input_features, output_features)
+        self.cnn[3] = nn.Conv2d(output_features // 16, output_features // 16, (1, 3), padding=(0, 1))
+        self.cnn[8] = nn.Conv2d(output_features // 16, output_features // 8, (1, 3), padding=(0, 1))
+
+class ConvStackShortF(ConvStack):
+    def __init__(self, input_features, output_features):
+        super().__init__(input_features, output_features)
+        self.cnn[0] = nn.Conv2d(1, output_features // 16, (1, 3), padding=(0, 1))
+        self.cnn[8] = nn.Conv2d(output_features // 16, output_features // 8, (1, 3), padding=(0, 1))
+
+class ConvStackShortG(ConvStack):
+    def __init__(self, input_features, output_features):
+        super().__init__(input_features, output_features)
+        self.cnn[0] = nn.Conv2d(1, output_features // 16, (1, 3), padding=(0, 1))
+        self.cnn[3] = nn.Conv2d(output_features // 16, output_features // 16, (1, 3), padding=(0, 1))
+        self.cnn[8] = nn.Conv2d(output_features // 16, output_features // 8, (1, 3), padding=(0, 1))
+
 
 class OnsetsAndFrames(nn.Module):
     def __init__(self, input_features, output_features, model_complexity=48):
@@ -73,19 +98,19 @@ class OnsetsAndFrames(nn.Module):
         sequence_model = lambda input_size, output_size: BiLSTM(input_size, output_size // 2)
 
         self.onset_stack = nn.Sequential(
-            ConvStackShortC(input_features, model_size),
+            ConvStackShort(input_features, model_size),
             sequence_model(model_size, model_size),
             nn.Linear(model_size, output_features),
             nn.Sigmoid()
         )
         self.offset_stack = nn.Sequential(
-            ConvStackShortC(input_features, model_size),
+            ConvStackShort(input_features, model_size),
             sequence_model(model_size, model_size),
             nn.Linear(model_size, output_features),
             nn.Sigmoid()
         )
         self.frame_stack = nn.Sequential(
-            ConvStackShortC(input_features, model_size),
+            ConvStackShort(input_features, model_size),
             nn.Linear(model_size, output_features),
             nn.Sigmoid()
         )
@@ -95,7 +120,7 @@ class OnsetsAndFrames(nn.Module):
             nn.Sigmoid()
         )
         self.velocity_stack = nn.Sequential(
-            ConvStackShortC(input_features, model_size),
+            ConvStackShort(input_features, model_size),
             nn.Linear(model_size, output_features)
         )
 
@@ -159,7 +184,8 @@ class ARTranscriber(nn.Module):
         model_size_conv = model_complexity_conv * 16
         model_size_lstm = model_complexity_lstm * 16
         self.language_hidden_size = model_size_lstm
-        self.acoustic_model = ConvStackShortC(input_features, model_size_conv)
+        # self.acoustic_model = ConvStackShortC(input_features, model_size_conv)
+        self.acoustic_model = globals()[acoustic_model_name](input_features, model_size_conv)
         self.language_model = torch.nn.LSTM(model_size_conv + 88*2, model_size_lstm, num_layers=2, batch_first=True, bidirectional=False)   # hidden size 768, num layers 2
         self.language_model.flatten_parameters()
 
