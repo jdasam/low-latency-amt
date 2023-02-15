@@ -226,7 +226,7 @@ class ARTranscriber(nn.Module):
             
         return total_result 
 
-    def run_on_batch(self, batch, evaluation=False):
+    def run_on_batch(self, batch, evaluation=False, label_shift=0):
         audio_label = batch['audio']
         if 'mel' in batch.keys():
             mel_label = batch['mel']
@@ -246,7 +246,7 @@ class ARTranscriber(nn.Module):
 
         pred = label_pred.permute(0,3,1,2)
         target = state_label.type(torch.LongTensor).to(label_pred.device)
-        loss = self.criterion(pred,target)
+        loss = self.criterion(pred[:,:,:-label_shift],target[:,:-label_shift])
 
 
         return label_pred, {'main': loss}

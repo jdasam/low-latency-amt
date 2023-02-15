@@ -58,7 +58,7 @@ def _predict_each_label(label, model):
 
 
 
-def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=None):
+def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=None, label_shift=0):
     metrics = defaultdict(list)
 
     for label in data:
@@ -70,7 +70,8 @@ def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=No
 
         for key, value in pred.items():
             value.squeeze_(0).relu_()
-
+            value = value[:-label_shift]
+        label['label'] = label['label'][:-label_shift]
         label_onset = (label['label'] == 3).float()
         label_frame  = (label['label'] > 1).float()
         p_ref, i_ref = extract_notes_wo_velocity(label_onset, label_frame)
@@ -129,7 +130,7 @@ def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=No
             pred_path = os.path.join(save_path, os.path.basename(label['path']) + '.pred.png')
             save_pianoroll(pred_path, pred['onset'], pred['frame'])
             midi_path = os.path.join(save_path, os.path.basename(label['path']) + '.pred.mid')
-            save_midi(midi_path, p_est, i_est, v_est)
+            save_midi(midi_path, p_est, i_est)
 
     return metrics
 

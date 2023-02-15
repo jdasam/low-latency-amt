@@ -22,6 +22,8 @@ def get_argument_parser():
                         help='directory path to the dataset')
 
     parser.add_argument('--acoustic_model_name', type=str, default='ConvStack')
+    parser.add_argument('--label_shift_frame', type=int, default=0)
+
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--iterations', type=int, default=1000)
     parser.add_argument('--learning_rate', type=float, default=0.0006)
@@ -69,7 +71,8 @@ def get_argument_parser():
 def update_args(args): 
     args.logdir = 'runs/transcriber-' + datetime.now().strftime('%y%m%d-%H%M%S')
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
+    # if args.device == 'cuda':
+    #   args.device = f'cuda:{args.gpu_id}'
     if torch.cuda.is_available() and torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory < 10e9:
         args.batch_size //= 2
         args.sequence_length //= 2
@@ -82,7 +85,7 @@ def update_args(args):
 
 def train(logdir, device, iterations, resume_iteration, checkpoint_interval, train_on, batch_size, sequence_length,
           model_complexity, learning_rate, learning_rate_decay_steps, learning_rate_decay_rate, leave_one_out,
-          clip_gradient_norm, validation_length, validation_interval, acoustic_model_name):
+          clip_gradient_norm, validation_length, validation_interval, acoustic_model_name, label_shift):
 
     os.makedirs(logdir, exist_ok=True)
     writer = SummaryWriter(logdir)
@@ -95,10 +98,10 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
         validation_groups = [str(leave_one_out)]
 
     if train_on == 'MAESTRO':
-        dataset = MAESTRO(groups=train_groups, sequence_length=sequence_length)
+        dataset = MAESTRO(groups=train_groups, sequence_length=sequence_length, label_shift=label_shift)
         validation_dataset = MAESTRO(groups=validation_groups, sequence_length=sequence_length)
     else:
-        dataset = MAPS(groups=['AkPnBcht', 'AkPnBsdf', 'AkPnCGdD', 'AkPnStgb', 'SptkBGAm', 'SptkBGCl', 'StbgTGd2'], sequence_length=sequence_length)
+        dataset = MAPS(groups=['AkPnBcht', 'AkPnBsdf', 'AkPnCGdD', 'AkPnStgb', 'SptkBGAm', 'SptkBGCl', 'StbgTGd2'], sequence_length=sequence_length, label_shift=label_shift)
         validation_dataset = MAPS(groups=['ENSTDkAm', 'ENSTDkCl'], sequence_length=validation_length)
 
     loader = DataLoader(dataset, batch_size, shuffle=True, drop_last=True)
@@ -119,7 +122,7 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
 
     loop = tqdm(range(resume_iteration + 1, iterations + 1))
     for i, batch in zip(loop, cycle(loader)):
-        predictions, losses = model.run_on_batch(batch)
+        predictions, losses = model.run_on_batch(batch, label_shift=label_shift)
 
         loss = sum(losses.values())
         optimizer.zero_grad()
@@ -137,7 +140,7 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
         if i % validation_interval == 0:
             model.eval()
             with torch.no_grad():
-                valid_result = evaluate(validation_dataset, model)
+                valid_result = evaluate(validation_dataset, model, label_shift=label_shift)
                 new_dict = {'validation/' + key.replace(' ', '_'): np.mean(value) for key, value in valid_result.items()}
                 wandb.log(new_dict, step=i)
                 # for key, value in evaluate(validation_dataset, model).items():
@@ -179,4 +182,5 @@ if __name__ == '__main__':
           args.clip_gradient_norm, 
           args.validation_length, 
           args.validation_interval,
-          args.acoustic_model_name)
+          args.acoustic_model_name,
+          args.label_shift_frame)
