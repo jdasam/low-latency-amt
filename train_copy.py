@@ -99,7 +99,7 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
 
     if train_on == 'MAESTRO':
         dataset = MAESTRO(groups=train_groups, sequence_length=sequence_length, label_shift=label_shift)
-        validation_dataset = MAESTRO(groups=validation_groups, sequence_length=sequence_length)
+        validation_dataset = MAESTRO(groups=validation_groups, sequence_length=sequence_length, label_shift=label_shift)
     else:
         dataset = MAPS(groups=['AkPnBcht', 'AkPnBsdf', 'AkPnCGdD', 'AkPnStgb', 'SptkBGAm', 'SptkBGCl', 'StbgTGd2'], sequence_length=sequence_length, label_shift=label_shift)
         validation_dataset = MAPS(groups=['ENSTDkAm', 'ENSTDkCl'], sequence_length=validation_length)
