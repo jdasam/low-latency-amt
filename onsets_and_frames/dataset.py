@@ -135,8 +135,9 @@ class PianoRollAudioDatasetOld(Dataset):
 
 
 class PianoRollAudioDataset(PianoRollAudioDatasetOld):
-    def __init__(self, path, groups=None, sequence_length=None, seed=42, device=DEFAULT_DEVICE):
+    def __init__(self, path, groups=None, sequence_length=None, seed=42, device=DEFAULT_DEVICE, label_shift=0):
         super().__init__(path, groups, sequence_length, seed, device)
+        self.label_shift = label_shift
     
     def __getitem__(self, index):
         data = self.data[index]
@@ -144,11 +145,15 @@ class PianoRollAudioDataset(PianoRollAudioDatasetOld):
 
         if self.sequence_length is not None:
             audio_length = len(data['audio'])
-            step_begin = self.random.randint(audio_length - self.sequence_length) // HOP_LENGTH
+            step_begin = self.random.randint(self.label_shift * HOP_LENGTH, audio_length - self.sequence_length) // HOP_LENGTH
+            begin = step_begin * HOP_LENGTH
+
             n_steps = self.sequence_length // HOP_LENGTH
+            step_begin -= self.label_shift # shift the label
+            # assert step_begin >= 0
             step_end = step_begin + n_steps
 
-            begin = step_begin * HOP_LENGTH
+            # begin = step_begin * HOP_LENGTH
             end = begin + self.sequence_length
 
             result['audio'] = data['audio'][begin:end].to(self.device)
@@ -164,8 +169,8 @@ class PianoRollAudioDataset(PianoRollAudioDatasetOld):
 
 class MAESTRO(PianoRollAudioDataset):
 
-    def __init__(self, path='data/MAESTRO', groups=None, sequence_length=None, seed=42, device=DEFAULT_DEVICE):
-        super().__init__(path, groups if groups is not None else ['train'], sequence_length, seed, device)
+    def __init__(self, path='data/MAESTRO', groups=None, sequence_length=None, seed=42, device=DEFAULT_DEVICE, label_shift=0):
+        super().__init__(path, groups if groups is not None else ['train'], sequence_length, seed, device, label_shift=label_shift)
 
     @classmethod
     def available_groups(cls):
@@ -201,8 +206,8 @@ class MAESTRO(PianoRollAudioDataset):
 
 
 class MAPS(PianoRollAudioDataset):
-    def __init__(self, path='data/MAPS', groups=None, sequence_length=None, seed=42, device=DEFAULT_DEVICE):
-        super().__init__(path, groups if groups is not None else ['ENSTDkAm', 'ENSTDkCl'], sequence_length, seed, device)
+    def __init__(self, path='data/MAPS', groups=None, sequence_length=None, seed=42, device=DEFAULT_DEVICE, label_shift=0):
+        super().__init__(path, groups if groups is not None else ['ENSTDkAm', 'ENSTDkCl'], sequence_length, seed, device, label_shift=label_shift)
 
     @classmethod
     def available_groups(cls):
