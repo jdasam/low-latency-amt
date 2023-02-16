@@ -70,15 +70,16 @@ def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=No
 
         for key, value in pred.items():
             value.squeeze_(0).relu_()
-            value = value[:-label_shift]
-        label['label'] = label['label'][:-label_shift]
+            if label_shift > 0:
+                pred[key] = value[:-label_shift]
+        if label_shift > 0: label['label'] = label['label'][:-label_shift]
         label_onset = (label['label'] == 3).float()
         label_frame  = (label['label'] > 1).float()
         p_ref, i_ref = extract_notes_wo_velocity(label_onset, label_frame)
-        p_est, i_est = extract_notes_wo_velocity(pred['onset'][:-label_shift], pred['frame'][:-label_shift], onset_threshold, frame_threshold)
+        p_est, i_est = extract_notes_wo_velocity(pred['onset'], pred['frame'], onset_threshold, frame_threshold)
 
         t_ref, f_ref = notes_to_frames(p_ref, i_ref, label_frame.shape)
-        t_est, f_est = notes_to_frames(p_est, i_est, pred['frame'][:-label_shift].shape)
+        t_est, f_est = notes_to_frames(p_est, i_est, pred['frame'].shape)
 
         scaling = HOP_LENGTH / SAMPLE_RATE
 

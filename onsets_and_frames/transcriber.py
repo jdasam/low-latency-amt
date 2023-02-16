@@ -246,7 +246,10 @@ class ARTranscriber(nn.Module):
 
         pred = label_pred.permute(0,3,1,2)
         target = state_label.type(torch.LongTensor).to(label_pred.device)
-        loss = self.criterion(pred[:,:,:-label_shift],target[:,:-label_shift])
+        if label_shift > 0:
+            loss = self.criterion(pred[:,:,:-label_shift],target[:,:-label_shift])
+        else:
+            loss = self.criterion(pred, target)
 
 
         return label_pred, {'main': loss}
