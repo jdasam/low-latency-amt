@@ -98,19 +98,19 @@ class OnsetsAndFrames(nn.Module):
         sequence_model = lambda input_size, output_size: BiLSTM(input_size, output_size // 2)
 
         self.onset_stack = nn.Sequential(
-            ConvStackShort(input_features, model_size),
+            ConvStack(input_features, model_size),
             sequence_model(model_size, model_size),
             nn.Linear(model_size, output_features),
             nn.Sigmoid()
         )
         self.offset_stack = nn.Sequential(
-            ConvStackShort(input_features, model_size),
+            ConvStack(input_features, model_size),
             sequence_model(model_size, model_size),
             nn.Linear(model_size, output_features),
             nn.Sigmoid()
         )
         self.frame_stack = nn.Sequential(
-            ConvStackShort(input_features, model_size),
+            ConvStack(input_features, model_size),
             nn.Linear(model_size, output_features),
             nn.Sigmoid()
         )
@@ -120,7 +120,7 @@ class OnsetsAndFrames(nn.Module):
             nn.Sigmoid()
         )
         self.velocity_stack = nn.Sequential(
-            ConvStackShort(input_features, model_size),
+            ConvStack(input_features, model_size),
             nn.Linear(model_size, output_features)
         )
 
