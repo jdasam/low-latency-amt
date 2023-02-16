@@ -85,7 +85,7 @@ def update_args(args):
 
 def train(logdir, device, iterations, resume_iteration, checkpoint_interval, train_on, batch_size, sequence_length,
           model_complexity, learning_rate, learning_rate_decay_steps, learning_rate_decay_rate, leave_one_out,
-          clip_gradient_norm, validation_length, validation_interval, acoustic_model_name, label_shift):
+          clip_gradient_norm, validation_length, validation_interval, acoustic_model_name, label_shift, save_log):
 
     os.makedirs(logdir, exist_ok=True)
     writer = SummaryWriter(logdir)
@@ -121,6 +121,7 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
     scheduler = StepLR(optimizer, step_size=learning_rate_decay_steps, gamma=learning_rate_decay_rate)
 
     loop = tqdm(range(resume_iteration + 1, iterations + 1))
+    best_note_f1 = 0
     for i, batch in zip(loop, cycle(loader)):
         predictions, losses = model.run_on_batch(batch, label_shift=label_shift)
 
@@ -129,7 +130,7 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
         loss.backward()
         optimizer.step()
         scheduler.step()
-        wandb.log({"loss": loss.item()}, step=i)
+        if save_log: wandb.log({"loss": loss.item()}, step=i)
 
         if clip_gradient_norm:
             clip_grad_norm_(model.parameters(), clip_gradient_norm)
@@ -142,11 +143,17 @@ def train(logdir, device, iterations, resume_iteration, checkpoint_interval, tra
             with torch.no_grad():
                 valid_result = evaluate(validation_dataset, model, label_shift=label_shift)
                 new_dict = {'validation/' + key.replace(' ', '_'): np.mean(value) for key, value in valid_result.items()}
-                wandb.log(new_dict, step=i)
+                if save_log: wandb.log(new_dict, step=i)
                 # for key, value in evaluate(validation_dataset, model).items():
                 #     writer.add_scalar('validation/' + key.replace(' ', '_'), np.mean(value), global_step=i)
             # wandb.log({"validation_loss": loss})
             model.train()
+
+            note_f1 = new_dict['validation/metric/note/f1']
+            if note_f1 > best_note_f1:
+              torch.save(model, os.path.join(logdir, f'model-best-notef1.pt'))
+              print(f"Saved model with best note f1 / iteration: {i}, f1_score: {note_f1:.4f}")
+              best_note_f1 = note_f1
 
         if i % checkpoint_interval == 0:
             torch.save(model, os.path.join(logdir, f'model-{i}.pt'))
@@ -160,11 +167,14 @@ if __name__ == '__main__':
     args = update_args(args)
 
     torch.manual_seed(args.seed)
-    wandb.init(project='low-latency-transcription',
-               name=f'baseline-test-{args.iterations}',
-            #    tags=['just-try'])
-    )
-    wandb.config.update(args)
+
+    if not args.no_log:
+      wandb.init(project='low-latency-amt',
+                 entity='maler',
+                name=f'{args.acoustic_model_name}-shift{args.label_shift_frame}-window{WINDOW_LENGTH}-hop{HOP_LENGTH}-{args.iterations}',
+              #    tags=['just-try'])
+      )
+      wandb.config.update(args)
 
     train(args.logdir, 
           args.device, 
@@ -183,4 +193,5 @@ if __name__ == '__main__':
           args.validation_length, 
           args.validation_interval,
           args.acoustic_model_name,
-          args.label_shift_frame)
+          args.label_shift_frame,
+          not args.no_log)
