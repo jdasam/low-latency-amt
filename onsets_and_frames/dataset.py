@@ -93,14 +93,22 @@ class PianoRollAudioDatasetOld(Dataset):
                 a matrix that contains MIDI velocity values at the frame locations
         """
         saved_data_path = audio_path.replace('.flac', '.pt').replace('.wav', '.pt')
-        if os.path.exists(saved_data_path):
+        if HOP_LENGTH != 512:
+          new_saved_path = saved_data_path.replace('.pt', f'_hop{HOP_LENGTH}.pt')
+          if os.path.exists(new_saved_path):
+              return torch.load(new_saved_path)
+          data = torch.load(saved_data_path)
+          saved_data_path = new_saved_path
+
+          audio = data['audio']
+        else:
+          if os.path.exists(saved_data_path):
             return torch.load(saved_data_path)
-        # print(f"Skip load: make new file for {audio_path}")
+    
+          audio, sr = soundfile.read(audio_path, dtype='int16')
+          assert sr == SAMPLE_RATE
 
-        audio, sr = soundfile.read(audio_path, dtype='int16')
-        assert sr == SAMPLE_RATE
-
-        audio = torch.ShortTensor(audio)
+          audio = torch.ShortTensor(audio)
         audio_length = len(audio)
 
         n_keys = MAX_MIDI - MIN_MIDI + 1
@@ -158,7 +166,10 @@ class PianoRollAudioDataset(PianoRollAudioDatasetOld):
             result['label'] = data['label'][step_begin:step_end, :].to(self.device)
         else:
             result['audio'] = data['audio'].to(self.device)
-            result['label'] = data['label'].to(self.device)
+            if self.label_shift > 0:
+                result['audio'] = result['audio'][:-self.label_shift * HOP_LENGTH]
+            result['label'] = data['label'][self.label_shift:].to(self.device)
+
 
         result['audio'] = result['audio'].float().div_(32768.0)
 
