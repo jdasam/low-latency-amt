@@ -98,10 +98,10 @@ class PianoRollAudioDatasetOld(Dataset):
         if os.path.exists(saved_data_path):
             return torch.load(saved_data_path)
     
-          audio, sr = soundfile.read(audio_path, dtype='int16')
-          assert sr == SAMPLE_RATE
+        audio, sr = soundfile.read(audio_path, dtype='int16')
+        assert sr == SAMPLE_RATE
 
-          audio = torch.ShortTensor(audio)
+        audio = torch.ShortTensor(audio)
         audio_length = len(audio)
 
         n_keys = MAX_MIDI - MIN_MIDI + 1
