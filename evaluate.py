@@ -138,9 +138,9 @@ def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=No
 
 
 def evaluate_file(model_file, dataset, dataset_group, sequence_length, save_path,
-                  onset_threshold, frame_threshold, device):
+                  onset_threshold, frame_threshold, device, label_shift=0):
     dataset_class = getattr(dataset_module, dataset)
-    kwargs = {'sequence_length': sequence_length, 'device': device}
+    kwargs = {'sequence_length': sequence_length, 'device': device, 'label_shift': label_shift}
     if dataset_group is not None:
         kwargs['groups'] = [dataset_group]
     dataset = dataset_class(**kwargs)
@@ -160,12 +160,14 @@ def evaluate_file(model_file, dataset, dataset_group, sequence_length, save_path
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('model_file', type=str)
-    parser.add_argument('dataset', nargs='?', default='MAPS')
-    parser.add_argument('dataset_group', nargs='?')
+    parser.add_argument('dataset', nargs='?', default='MAESTRO')
+    parser.add_argument('dataset_group', nargs='?', default='test')
     parser.add_argument('--save-path', default=None)
     parser.add_argument('--sequence-length', default=None, type=int)
     parser.add_argument('--onset-threshold', default=0.5, type=float)
     parser.add_argument('--frame-threshold', default=0.5, type=float)
+    parser.add_argument('--label_shift', default=0, type=int)
+
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
 
     with torch.no_grad():

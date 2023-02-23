@@ -97,12 +97,11 @@ class PianoRollAudioDatasetOld(Dataset):
             saved_data_path = saved_data_path.replace('.pt', f"hop{HOP_LENGTH}_.pt")
         if os.path.exists(saved_data_path):
             return torch.load(saved_data_path)
-        # print(f"Skip load: make new file for {audio_path}")
+    
+          audio, sr = soundfile.read(audio_path, dtype='int16')
+          assert sr == SAMPLE_RATE
 
-        audio, sr = soundfile.read(audio_path, dtype='int16')
-        assert sr == SAMPLE_RATE
-
-        audio = torch.ShortTensor(audio)
+          audio = torch.ShortTensor(audio)
         audio_length = len(audio)
 
         n_keys = MAX_MIDI - MIN_MIDI + 1
@@ -147,22 +146,23 @@ class PianoRollAudioDataset(PianoRollAudioDatasetOld):
 
         if self.sequence_length is not None:
             audio_length = len(data['audio'])
-            step_begin = self.random.randint(self.label_shift * HOP_LENGTH, audio_length - self.sequence_length) // HOP_LENGTH
+            step_begin = self.random.randint(audio_length - self.sequence_length - self.label_shift * HOP_LENGTH) // HOP_LENGTH
             begin = step_begin * HOP_LENGTH
+            end = begin + self.sequence_length
 
             n_steps = self.sequence_length // HOP_LENGTH
-            step_begin -= self.label_shift # shift the label
+            step_begin += self.label_shift # shift the label
             # assert step_begin >= 0
             step_end = step_begin + n_steps
-
-            # begin = step_begin * HOP_LENGTH
-            end = begin + self.sequence_length
 
             result['audio'] = data['audio'][begin:end].to(self.device)
             result['label'] = data['label'][step_begin:step_end, :].to(self.device)
         else:
             result['audio'] = data['audio'].to(self.device)
-            result['label'] = data['label'].to(self.device)
+            if self.label_shift > 0:
+                result['audio'] = result['audio'][:-self.label_shift * HOP_LENGTH]
+            result['label'] = data['label'][self.label_shift:].to(self.device)
+
 
         result['audio'] = result['audio'].float().div_(32768.0)
 
