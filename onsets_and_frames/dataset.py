@@ -93,6 +93,8 @@ class PianoRollAudioDatasetOld(Dataset):
                 a matrix that contains MIDI velocity values at the frame locations
         """
         saved_data_path = audio_path.replace('.flac', '.pt').replace('.wav', '.pt')
+        if HOP_LENGTH != 512:
+            saved_data_path = saved_data_path.replace('.pt', f"hop{HOP_LENGTH}_.pt")
         if os.path.exists(saved_data_path):
             return torch.load(saved_data_path)
         # print(f"Skip load: make new file for {audio_path}")
