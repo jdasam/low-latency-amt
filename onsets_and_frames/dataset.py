@@ -94,15 +94,8 @@ class PianoRollAudioDatasetOld(Dataset):
         """
         saved_data_path = audio_path.replace('.flac', '.pt').replace('.wav', '.pt')
         if HOP_LENGTH != 512:
-          new_saved_path = saved_data_path.replace('.pt', f'_hop{HOP_LENGTH}.pt')
-          if os.path.exists(new_saved_path):
-              return torch.load(new_saved_path)
-          data = torch.load(saved_data_path)
-          saved_data_path = new_saved_path
-
-          audio = data['audio']
-        else:
-          if os.path.exists(saved_data_path):
+            saved_data_path = saved_data_path.replace('.pt', f"hop{HOP_LENGTH}_.pt")
+        if os.path.exists(saved_data_path):
             return torch.load(saved_data_path)
     
           audio, sr = soundfile.read(audio_path, dtype='int16')

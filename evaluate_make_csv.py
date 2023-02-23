@@ -5,6 +5,8 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+import yaml
+from pathlib import Path
 from mir_eval.multipitch import evaluate as evaluate_frames
 from mir_eval.transcription import precision_recall_f1_overlap as evaluate_notes
 from mir_eval.transcription_velocity import precision_recall_f1_overlap as evaluate_notes_with_velocity
@@ -138,9 +140,9 @@ def evaluate(data, model, onset_threshold=0.5, frame_threshold=0.5, save_path=No
 
 
 def evaluate_file(model_file, dataset, dataset_group, sequence_length, save_path,
-                  onset_threshold, frame_threshold, device, label_shift=0):
+                  onset_threshold, frame_threshold, device):
     dataset_class = getattr(dataset_module, dataset)
-    kwargs = {'sequence_length': sequence_length, 'device': device, 'label_shift': label_shift}
+    kwargs = {'sequence_length': sequence_length, 'device': device}
     if dataset_group is not None:
         kwargs['groups'] = [dataset_group]
     dataset = dataset_class(**kwargs)
@@ -155,20 +157,41 @@ def evaluate_file(model_file, dataset, dataset_group, sequence_length, save_path
             _, category, name = key.split('/')                                                                                                                                                                                         
             print(f'{category:>32} {name:25}: {np.mean(values):.3f} ± {np.std(values):.3f}')
 
-    metrics_df = pd.DataFrame()
+    return metrics
+
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('model_file', type=str)
+    parser.add_argument('model_file', type=str, default='runs/transcriber-230216-215059/model-best-notef1.pt')
     parser.add_argument('dataset', nargs='?', default='MAESTRO')
     parser.add_argument('dataset_group', nargs='?', default='test')
     parser.add_argument('--save-path', default=None)
     parser.add_argument('--sequence-length', default=None, type=int)
     parser.add_argument('--onset-threshold', default=0.5, type=float)
     parser.add_argument('--frame-threshold', default=0.5, type=float)
-    parser.add_argument('--label_shift', default=0, type=int)
-
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
 
-    with torch.no_grad():
-        evaluate_file(**vars(parser.parse_args()))
+    args = parser.parse_args()
+
+    wandb_path = sorted(list(Path('wandb').glob('run*/')))
+    run_date = '20' + str(args.model_file).split('-')[1]
+    run, logdir, pt_file = args.model_file.split('/')
+    result_dict = defaultdict(int)
+
+    for wandb_run in wandb_path:            
+        if run_date in str(wandb_run):
+            with open(str(wandb_run) + '/files/config.yaml') as f:
+                config = yaml.safe_load(f)
+            if len(config) >= 20 and f'{run}/{logdir}' == config['logdir']['value']:
+                run_name = f'{config["acoustic_model_name"]["value"]}-shift{config["label_shift_frame"]["value"]}-{config["iterations"]["value"]}-{logdir}'      
+                with torch.no_grad():
+                    metrics = evaluate_file(**vars(args))
+                for key, values in metrics.items():
+                    if key.startswith('metric/'):
+                        _, category, name = key.split('/')                                                                                                                                                                                   
+                    result_dict[f'{category}/{name}'] = f'{np.mean(values):.4f}'
+    
+    result_df = pd.DataFrame(data=result_dict, columns=result_dict.keys(), index=[run_name])
+    result_df.to_csv(f'/home/dasol/userdata/low-latency-transcription/onsets-and-frames/{run_name}.csv', sep=',', na_rep='NaN')
+
