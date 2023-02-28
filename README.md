@@ -1,3 +1,13 @@
+# PyTorch Implmentation of Low-latency AMT model
+
+This is a [PyTorch](https://pytorch.org/) implementation of [Kwon et al.'s](https://arxiv.org/abs/2010.01104) multi-state autoregressive AMT model while reducing its latency.
+
+
+
+
+Below is the readme of [original respository](https://github.com/jongwook/onsets-and-frames)
+ 
+------ 
 # PyTorch Implementation of Onsets and Frames
 
 This is a [PyTorch](https://pytorch.org/) implementation of Google's [Onsets and Frames](https://magenta.tensorflow.org/onsets-frames) model, using the [Maestro dataset](https://magenta.tensorflow.org/datasets/maestro) for training and the Disklavier portion of the [MAPS database](http://www.tsi.telecom-paristech.fr/aao/en/2010/07/08/maps-database-a-piano-database-for-multipitch-estimation-and-automatic-transcription-of-music/) for testing.
