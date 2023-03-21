@@ -3,6 +3,10 @@
 This is a [PyTorch](https://pytorch.org/) implementation of [Kwon et al.'s](https://arxiv.org/abs/2010.01104) multi-state autoregressive AMT model while reducing its latency.
 
 
+## Experiment Result
+![table1](table1_low.jpg)
+
+
 
 
 Below is the readme of [original respository](https://github.com/jongwook/onsets-and-frames)
